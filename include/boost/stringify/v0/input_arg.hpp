@@ -87,13 +87,23 @@ class input_arg
 
     typedef void (*formatter_init_func)(void* mem, const FTuple& ft);
 
+    struct private_type {};
+
 public:
 
     template
         < typename T
         , typename S = formatter_impl<T>
-        , typename = std::enable_if_t<!std::is_array<T>::value>>
-    input_arg(const T& arg1, storage<S> && st = storage<S>())
+        , typename = typename std::enable_if
+            < !std::is_array<T>::value
+           && !std::is_pointer<T>::value
+            > ::type
+        >
+    input_arg
+        ( const T& arg1
+        , private_type = {}
+        , storage<S> && st = {}
+        )
         : m_initializer(detail::formatter_init_ref<S, FTuple, T>)
         , m_formatter(reinterpret_cast<formatter<CharT>*>(&st.data))
     {
@@ -101,7 +111,11 @@ public:
     }
 
     template <typename T, typename S = formatter_impl<T*>>
-    input_arg(const T* arg1, storage<S> && st = storage<S>())
+    input_arg
+        ( const T* arg1
+        , private_type = {}
+        , storage<S> && st = {}
+        )
         : m_initializer(detail::formatter_init_ptr<S, FTuple, T>)
         , m_formatter(reinterpret_cast<formatter<CharT>*>(&st.data))
     {
@@ -111,11 +125,16 @@ public:
     template
         < typename T
         , typename S = formatter_impl<T>
-        , typename = std::enable_if_t<!std::is_array<T>::value>>
+        , typename = typename std::enable_if
+            < ! std::is_array<T>::value
+           && ! std::is_pointer<T>::value
+            > ::type
+        >
     input_arg
         ( const T& arg1
         , const typename S::second_arg& arg2
-        , storage<S> && st = storage<S>()
+        , private_type = {}
+        , storage<S> && st = {}
         )
         : m_initializer(detail::formatter_init_ref_2<S, FTuple, T>)
         , m_formatter(reinterpret_cast<formatter<CharT>*>(&st.data))
@@ -127,7 +146,8 @@ public:
     input_arg
         ( const T* arg1
         , const typename S::second_arg& arg2
-        , storage<S> && st = storage<S>()
+        , private_type = {}
+        , storage<S> && st = {}
         )
         : m_initializer(detail::formatter_init_ptr_2<S, FTuple, T>)
         , m_formatter(reinterpret_cast<formatter<CharT>*>(&st.data))
@@ -149,7 +169,7 @@ public:
         return m_formatter->length();
     }
 
-    void write(boost::stringify::v0::output_writer<CharT>& out, const FTuple& ft) const
+    void write(stringify::v0::output_writer<CharT>& out, const FTuple& ft) const
     {
         init_if_necessary(ft);
         return m_formatter->write(out);
@@ -167,7 +187,7 @@ private:
     {
         return m_initializer == nullptr;
     }
-    
+
     void init_if_necessary(const FTuple& ft) const
     {
         if(m_initializer != nullptr)
@@ -181,6 +201,91 @@ private:
     boost::stringify::v0::formatter<CharT>* m_formatter;
 
 };
+
+template <typename T>
+constexpr auto fmt(const T& value)
+{
+    return decltype(boost_stringify_input_traits_of(value))::fmt(value);
+}
+
+template <typename T>
+constexpr auto uphex(const T& value)
+{
+    return fmt(value).uphex();
+}
+
+template <typename T>
+constexpr auto hex(const T& value)
+{
+    return fmt(value).hex();
+}
+
+template <typename T>
+constexpr auto dec(const T& value)
+{
+    return fmt(value).dec();
+}
+
+template <typename T>
+constexpr auto oct(const T& value)
+{
+    return fmt(value).oct();
+}
+
+template <typename T>
+constexpr auto left(const T& value, int width)
+{
+    return fmt(value) < width;
+}
+
+template <typename T>
+constexpr auto right(const T& value, int width)
+{
+    return fmt(value) > width;
+}
+
+template <typename T>
+constexpr auto internal(const T& value, int width)
+{
+    return fmt(value) % width;
+}
+
+template <typename T>
+constexpr auto center(const T& value, int width)
+{
+    return fmt(value) ^ width;
+}
+
+template <typename T>
+constexpr auto left(const T& value, int width, char32_t fill)
+{
+    return fmt(value).fill(fill) < width;
+}
+
+template <typename T>
+constexpr auto right(const T& value, int width, char32_t fill)
+{
+    return fmt(value).fill(fill) > width;
+}
+
+template <typename T>
+constexpr auto internal(const T& value, int width, char32_t fill)
+{
+    return fmt(value).fill(fill) % width;
+}
+
+template <typename T>
+constexpr auto center(const T& value, int width, char32_t fill)
+{
+    return fmt(value).fill(fill) ^ width;
+}
+
+template <typename T, typename I>
+constexpr auto multi(const T& value, I count)
+{
+    return fmt(value).multi(count);
+}
+
 
 BOOST_STRINGIFY_V0_NAMESPACE_END
 

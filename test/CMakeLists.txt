@@ -11,18 +11,21 @@ foreach(
   input_char_test
   input_char32_test
   input_ftuple_test
+  numpunct_test
   join_test
   output_string_test
   output_char_ptr_test
   output_streambuf_test
   output_FILE_test
   ftuple_merge_test
+  ftuple_test
   reserve_test
   throw_on_error_code_test
   utf8_encoding_test
   utf8_decoding_test
   utf16_encoding_test
   utf16_decoding_test
+  width_calculator_test
   )
 
   add_executable(${t}_header_only   v0/${t}.cpp)

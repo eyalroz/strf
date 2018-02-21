@@ -10,9 +10,13 @@ foreach(x
     custom_decoder
     custom_decoding_error_handling
     custom_encoding_error_handling
-    decoding_facets
+    custom_width_calculation
     facets
-    ftuple_as_input_arg
+    format_functions
+    ftuple_as_input
+    numpunct_facets
+    width_calculation_in_encoding_conversion
+    decoding_facets
     joins
     syntax_samples
     trivial_sample)

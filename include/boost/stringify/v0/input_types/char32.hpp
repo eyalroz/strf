@@ -6,161 +6,203 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 
 #include <type_traits>
+#include <boost/stringify/v0/ftuple.hpp>
+#include <boost/stringify/v0/arg_format.hpp>
 #include <boost/stringify/v0/formatter.hpp>
-#include <boost/stringify/v0/char_flags.hpp>
-#include <boost/stringify/v0/facets/alignment.hpp>
 #include <boost/stringify/v0/facets/encoder.hpp>
-#include <boost/stringify/v0/facets/fill.hpp>
-#include <boost/stringify/v0/facets/width.hpp>
 #include <boost/stringify/v0/facets/width_calculator.hpp>
 
 BOOST_STRINGIFY_V0_NAMESPACE_BEGIN
 
-struct char_argf
+
+template <typename CharT>
+class char_with_format
+    : public stringify::v0::char_format<char_with_format<CharT> >
 {
-    using char_flags_type = stringify::v0::char_flags<'<', '>', '='>;
+public:
 
-    constexpr char_argf(int w)
-        : width(w)
-    {
-    }
-    constexpr char_argf(const char* f, std::size_t c=1)
-        : count(c), flags(f)
-    {
-    }
-    constexpr char_argf(int w, const char* f, std::size_t c=1)
-        : count(c), width(w), flags(f)
+    template <typename T>
+    using fmt_tmpl = stringify::v0::char_format<T>;
+
+    using fmt_type = fmt_tmpl<char_with_format>;
+
+    constexpr char_with_format(CharT value)
+        : m_value(value)
     {
     }
 
-    constexpr char_argf(const char_argf&) = default;
+    constexpr char_with_format(CharT value, const fmt_type& fmt)
+        : fmt_type(fmt)
+        , m_value(value)
+    {
+    }
 
-    std::size_t count = 1;
-    int width = -1;
-    char_flags_type flags;
+    constexpr char_with_format(const char_with_format&) = default;
+
+    constexpr CharT value() const
+    {
+        return m_value;
+    }
+
+private:
+
+    CharT m_value = 0;
 };
-
-namespace detail {
 
 template <typename CharT>
 class char32_formatter: public formatter<CharT>
 {
     using input_type = char32_t;
     using writer_type = stringify::v0::output_writer<CharT>;
-    using encoder_tag = stringify::v0::encoder_tag<CharT>;
-    using wcalc_tag = stringify::v0::width_calculator_tag;
-    using argf_reader = stringify::v0::conventional_argf_reader<input_type>;
 
 public:
 
-    using second_arg = stringify::v0::char_argf;
-
     template <typename FTuple>
     char32_formatter
         ( const FTuple& ft
-        , char32_t ch
+        , const stringify::v0::char_with_format<char32_t>& input
         ) noexcept
-        : m_encoder(get_facet<encoder_tag>(ft))
-        , m_width(get_facet<width_tag>(ft).width())
-        , m_char(ch)
-        , m_fillchar(get_facet<fill_tag>(ft).fill_char())
-        , m_alignment(get_facet<alignment_tag>(ft).value())
+        : char32_formatter(input, get_encoder(ft), get_width_calculator(ft))
     {
-        determinate_fill_and_width(get_facet<wcalc_tag>(ft));
     }
 
-    template <typename FTuple>
     char32_formatter
-        ( const FTuple& ft
-        , char32_t ch
-        , const second_arg& argf
-        ) noexcept
-        : m_encoder(get_facet<encoder_tag>(ft))
-        , m_count(argf.count)
-        , m_width(argf_reader::get_width(argf, ft))
-        , m_char(ch)
-        , m_fillchar(get_facet<fill_tag>(ft).fill_char())
-        , m_alignment(argf_reader::get_alignment(argf, ft))
-    {
-        determinate_fill_and_width(get_facet<wcalc_tag>(ft));
-    }
+        ( const stringify::v0::char_with_format<char32_t>& input
+        , const stringify::v0::encoder<CharT>& encoder
+        , const stringify::v0::width_calculator& wcalc
+        ) noexcept;
 
+    virtual ~char32_formatter();
 
-    std::size_t length() const override
-    {
-        std::size_t len = 0;
-        if (m_count > 0)
-        {
-            len = m_count * m_encoder.length(m_char);
-        }
-        if (m_fillcount > 0)
-        {
-            len += m_fillcount * m_encoder.length(m_fillchar);
-        }
-        return len;
-    }
+    std::size_t length() const override;
 
-    void write(writer_type& out) const override
-    {
-        if (m_fillcount == 0)
-        {
-            m_encoder.encode(out, m_count, m_char);
-        }
-        else if(m_alignment == stringify::v0::alignment::left)
-        {
-            m_encoder.encode(out, m_count, m_char);
-            m_encoder.encode(out, m_fillcount, m_fillchar);
-        }
-        else
-        {
-            m_encoder.encode(out, m_fillcount, m_fillchar);
-            m_encoder.encode(out, m_count, m_char);
-        }
-    }
+    void write(writer_type& out) const override;
 
-    int remaining_width(int w) const override
-    {
-        if (w > 0 && std::size_t(w) > m_width)
-        {
-            return w - static_cast<int>(m_width);
-        }
-        return 0;
-    }
+    int remaining_width(int w) const override;
 
 private:
 
+    stringify::v0::char_with_format<char32_t> m_fmt;
     const stringify::v0::encoder<CharT>& m_encoder;
-    const std::size_t m_count = 1;
-    std::size_t m_width;
-    const char32_t m_char;
-    const char32_t m_fillchar;
     int m_fillcount = 0;
-    const stringify::v0::alignment m_alignment;
 
-    template <typename Category, typename FTuple>
-    const auto& get_facet(const FTuple& ft) const
+    template <typename FTuple>
+    static const auto& get_encoder(const FTuple& ft)
     {
-        return ft.template get_facet<Category, input_type>();
+        using category = stringify::v0::encoder_category<CharT>;
+        return ft.template get_facet<category, input_type>();
+    }
+
+    template <typename FTuple>
+    static const auto& get_width_calculator(const FTuple& ft)
+    {
+        using category = stringify::v0::width_calculator_category;
+        return ft.template get_facet<category, input_type>();
     }
 
     void determinate_fill_and_width(const stringify::v0::width_calculator& wcalc)
     {
-        std::size_t content_width = 0;
-        if ( m_count > 0 )
+        int content_width = 0;
+        if(m_fmt.width() < 0)
         {
-            content_width = m_count * wcalc.width_of(m_char);
+            m_fmt.width(0);
         }
-        if (content_width >= m_width)
+        if (m_fmt.count() > 0)
+        {
+            content_width = m_fmt.count() * wcalc.width_of(m_fmt.value());
+        }
+        if (content_width >= m_fmt.width())
         {
             m_fillcount = 0;
-            m_width = content_width;
+            m_fmt.width(content_width);
         }
         else
         {
-            m_fillcount = static_cast<int>(m_width - content_width);
+            m_fillcount = m_fmt.width() - content_width;
         }
     }
 };
+
+
+template <typename CharT>
+char32_formatter<CharT>::char32_formatter
+    ( const stringify::v0::char_with_format<char32_t>& input
+    , const stringify::v0::encoder<CharT>& encoder
+    , const stringify::v0::width_calculator& wcalc
+    ) noexcept
+    : m_fmt(input)
+    , m_encoder(encoder)
+{
+    determinate_fill_and_width(wcalc);
+}
+
+
+template <typename CharT>
+char32_formatter<CharT>::~char32_formatter()
+{
+}
+
+
+template <typename CharT>
+std::size_t char32_formatter<CharT>::length() const
+{
+    std::size_t len = 0;
+    if (m_fmt.count() > 0)
+    {
+        len = m_fmt.count() * m_encoder.length(m_fmt.value());
+    }
+    if (m_fillcount > 0)
+    {
+        len += m_fillcount * m_encoder.length(m_fmt.fill());
+    }
+    return len;
+}
+
+
+template <typename CharT>
+void char32_formatter<CharT>::write(writer_type& out) const
+{
+    if (m_fillcount == 0)
+    {
+        m_encoder.encode(out, m_fmt.count(), m_fmt.value());
+    }
+    else
+    {
+        switch(m_fmt.alignment())
+        {
+            case stringify::v0::alignment::left:
+            {
+                m_encoder.encode(out, m_fmt.count(), m_fmt.value());
+                m_encoder.encode(out, m_fillcount, m_fmt.fill());
+                break;
+            }
+            case stringify::v0::alignment::center:
+            {
+                auto halfcount = m_fillcount / 2;
+                m_encoder.encode(out, halfcount, m_fmt.fill());
+                m_encoder.encode(out, m_fmt.count(), m_fmt.value());
+                m_encoder.encode(out, m_fillcount - halfcount, m_fmt.fill());
+                break;
+            }
+            default:
+            {
+                m_encoder.encode(out, m_fillcount, m_fmt.fill());
+                m_encoder.encode(out, m_fmt.count(), m_fmt.value());
+            }
+        }
+    }
+}
+
+
+template <typename CharT>
+int char32_formatter<CharT>::remaining_width(int w) const
+{
+    if (w > m_fmt.width())
+    {
+        return w - m_fmt.width();
+    }
+    return 0;
+}
 
 #if defined(BOOST_STRINGIFY_NOT_HEADER_ONLY)
 
@@ -171,18 +213,28 @@ BOOST_STRINGIFY_EXPLICIT_TEMPLATE class char32_formatter<wchar_t>;
 
 #endif // defined(BOOST_STRINGIFY_NOT_HEADER_ONLY)
 
+namespace detail {
 
 struct char32_input_traits
 {
     template <typename CharT, typename FTuple>
     using formatter
-    = stringify::v0::detail::char32_formatter<CharT>;
+    = stringify::v0::char32_formatter<CharT>;
+
+    constexpr static auto fmt(char32_t value)
+        -> stringify::v0::char_with_format<char32_t>
+    {
+        return {value};
+    }
 };
 
 } // namespace detail
 
 stringify::v0::detail::char32_input_traits
 boost_stringify_input_traits_of(char32_t);
+
+stringify::v0::detail::char32_input_traits
+boost_stringify_input_traits_of(const stringify::v0::char_with_format<char32_t>&);
 
 
 BOOST_STRINGIFY_V0_NAMESPACE_END

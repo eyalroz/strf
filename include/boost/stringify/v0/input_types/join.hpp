@@ -6,62 +6,74 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 
 #include <boost/stringify/v0/input_arg.hpp>
-#include <boost/stringify/v0/facets/alignment.hpp>
 #include <initializer_list>
 
 BOOST_STRINGIFY_V0_NAMESPACE_BEGIN
+
 namespace detail {
 struct join_t
 {
-    boost::stringify::v0::alignment align;
-    char32_t fillchar = char32_t();
     int width = 0;
+    stringify::v0::alignment align = stringify::v0::alignment::right;
+    char32_t fillchar = U' ';
     int num_leading_args = 1;
 };
-
 }
 
-inline boost::stringify::v0::detail::join_t
-join_left(int width, char32_t fillchar = char32_t())
+inline stringify::v0::detail::join_t
+join( int width = 0
+    , stringify::v0::alignment align = stringify::v0::alignment::right
+    , char32_t fillchar = U' '
+    , int num_leading_args = 0
+    )
 {
-    return {boost::stringify::v0::alignment::left, fillchar, width, 0};
+    return {width, align, fillchar, num_leading_args};
 }
 
-
-inline boost::stringify::v0::detail::join_t
-join_right(int width, char32_t fillchar = char32_t())
+inline stringify::v0::detail::join_t
+join_center(int width, char32_t fillchar = U' ')
 {
-    return {boost::stringify::v0::alignment::right, fillchar, width, 0};
+    return {width, stringify::v0::alignment::center, fillchar, 0};
 }
 
-inline boost::stringify::v0::detail::join_t
-join_internal(int width, int num_leading_args = 1, char32_t fillchar = char32_t())
+inline stringify::v0::detail::join_t
+join_left(int width, char32_t fillchar = U' ')
 {
-    return {boost::stringify::v0::alignment::internal
-            , fillchar, width, num_leading_args};
+    return {width, stringify::v0::alignment::left, fillchar, 0};
 }
 
-inline boost::stringify::v0::detail::join_t
-join_internal(int width, char32_t fillchar)
+
+inline stringify::v0::detail::join_t
+join_right(int width, char32_t fillchar = U' ')
 {
-    return {boost::stringify::v0::alignment::internal, fillchar, width, 1};
+    return {width, stringify::v0::alignment::right, fillchar, 0};
 }
 
-namespace detail {
+inline stringify::v0::detail::join_t
+join_internal(int width, char32_t fillchar, int num_leading_args)
+{
+    return {width, stringify::v0::alignment::internal, fillchar, num_leading_args};
+}
+
+inline stringify::v0::detail::join_t
+join_internal(int width, int num_leading_args)
+{
+    return {width, stringify::v0::alignment::internal, U' ', num_leading_args};
+}
 
 template <typename CharT, typename FTuple>
 class join_formatter: public formatter<CharT>
 {
-    using width_calc_tag = boost::stringify::v0::width_calculator_tag;
-    using encoder_tag = boost::stringify::v0::encoder_tag<CharT>;
-    using input_arg = boost::stringify::v0::input_arg<CharT, FTuple>;
+    using width_calc_category = stringify::v0::width_calculator_category;
+    using encoder_category = stringify::v0::encoder_category<CharT>;
+    using input_arg = stringify::v0::input_arg<CharT, FTuple>;
     using ini_list_type = std::initializer_list<input_arg>;
 
 public:
 
     using char_type   = CharT;
-    using input_type  = boost::stringify::v0::detail::join_t ;
-    using writer_type = boost::stringify::v0::output_writer<CharT>;
+    using input_type  = stringify::v0::detail::join_t ;
+    using writer_type = stringify::v0::output_writer<CharT>;
     using ftuple_type = FTuple;
     using second_arg = ini_list_type;
 
@@ -73,7 +85,6 @@ public:
         : m_ft(ft)
         , m_join(j)
         , m_args(args)
-        , m_fillchar{j.fillchar != 0 ? j.fillchar : get_facet<fill_tag>().fill_char()}
         , m_fillcount{remaining_width_from_arglist(m_join.width)}
     {
     }
@@ -93,17 +104,26 @@ public:
         {
             switch(m_join.align)
             {
-                case boost::stringify::v0::alignment::left:
+                case stringify::v0::alignment::left:
                     write_args(out);
-                    write_fill(out);
+                    write_fill(out, m_fillcount);
                     break;
-                case boost::stringify::v0::alignment::right:
-                    write_fill(out);
+                case stringify::v0::alignment::right:
+                    write_fill(out, m_fillcount);
                     write_args(out);
                     break;
-                case boost::stringify::v0::alignment::internal:
+                case stringify::v0::alignment::internal:
                     write_splitted(out);
                     break;
+                case stringify::v0::alignment::center:
+                {
+                    auto half_fillcount = m_fillcount / 2;
+                    write_fill(out, half_fillcount);
+                    write_args(out);
+                    write_fill(out, m_fillcount - half_fillcount);
+                    break;
+                }
+
             }
         }
     }
@@ -120,9 +140,8 @@ public:
 private:
 
     const FTuple& m_ft;
-    const input_type& m_join;
-    const ini_list_type& m_args;
-    char32_t m_fillchar = U' ';
+    input_type m_join;
+    const ini_list_type m_args;
     int m_fillcount = 0;
 
     template <typename Category>
@@ -145,7 +164,8 @@ private:
     {
         if(m_fillcount > 0)
         {
-            return m_fillcount * get_facet<encoder_tag>().length(m_fillchar);
+            return m_fillcount
+                * get_facet<encoder_category>().length(m_join.fillchar);
         }
         return 0;
     }
@@ -168,7 +188,7 @@ private:
         {
             (*it).write(out, m_ft);
         }
-        write_fill(out);
+        write_fill(out, m_fillcount);
         while(it != m_args.end())
         {
             (*it).write(out, m_ft);
@@ -184,25 +204,24 @@ private:
         }
     }
 
-    void write_fill(writer_type& out) const
+    void write_fill(writer_type& out, int count) const
     {
-         get_facet<encoder_tag>().encode(out, m_fillcount, m_fillchar);
+         get_facet<encoder_category>().encode(out, count, m_join.fillchar);
     }
 
 };
 
+namespace detail {
 
 struct input_join_traits
 {
     template <typename CharT, typename FTuple>
     using formatter =
-        boost::stringify::v0::detail::join_formatter<CharT, FTuple>;
+        stringify::v0::join_formatter<CharT, FTuple>;
 };
 
-
-boost::stringify::v0::detail::input_join_traits
-boost_stringify_input_traits_of(const boost::stringify::v0::detail::join_t&);
-
+stringify::v0::detail::input_join_traits
+boost_stringify_input_traits_of(const stringify::v0::detail::join_t&);
 
 } // namespace detail
 

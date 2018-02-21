@@ -16,164 +16,44 @@ struct is_char: public std::is_same<T, char>
 int main()
 {
     namespace strf = boost::stringify::v0;
-    
-    // width, alignment, and repetitions
-    TEST("aaaa|bbbb|cccc  |    |aaaa|bbbb|  cccc|    ") &=
-    {
-            {'a', {2, "<", 4}}, '|',
-            {'b', {4, "<", 4}}, '|',
-            {'c', {6, "<", 4}}, '|',
-            {'d', {4, "<", 0}}, '|',
 
-            {'a', {2, ">", 4}}, '|',
-            {'b', {4, ">", 4}}, '|',
-            {'c', {6, ">", 4}}, '|',
-            {'d', {4, "<", 0}}
-    };
+    TEST("a") &= { 'a' };
+    TEST("aaaa") &= { strf::multi('a', 4) };
+    TEST("  aa") &= { strf::multi('a', 2) > 4 };
 
+    TEST("    a") &= { strf::right('a', 5) };
+    TEST("a    ") &= { strf::left('a', 5)  };
+    TEST("aa   ") &= { strf::multi('a', 2) < 5 };
 
-    // width calculations inside joins
-    TEST("aaaa|  bb|cccc|  dd|eeee--|  ff--") &=
-    {
-        {strf::join_left(2, '-'), {{'a', {2, "", 4}}}}, '|',
-        {strf::join_left(2, '-'), {{'b', {4, "", 2}}}}, '|',
-        {strf::join_left(4, '-'), {{'c', {2, "", 4}}}}, '|',
-        {strf::join_left(4, '-'), {{'d', {4, "", 2}}}}, '|',
-        {strf::join_left(6, '-'), {{'e', {2, "", 4}}}}, '|',
-        {strf::join_left(6, '-'), {{'f', {4, "", 2}}}}
-    };
+    TEST("....a") &= { strf::right('a', 5, '.')  };
+    TEST("a....") &= { strf::left('a', 5, '.')   };
+    TEST("..a..") &= { strf::center('a', 5, '.') };
 
+    TEST("...aa") &= { strf::right('a', 5, '.').multi(2)  };
+    TEST("aa...") &= { strf::left('a', 5, '.').multi(2)   };
+    TEST(".aa..") &= { strf::center('a', 5, '.').multi(2) };
 
+    TEST(".....") &= { strf::right('a', 5, '.').multi(0)  };
+    TEST(".....") &= { strf::left('a', 5, '.').multi(0)   };
+    TEST(".....") &= { strf::center('a', 5, '.').multi(0) };
 
-    // facets
-    TEST("---a--bb----|--a-bb---|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char>(U'-')
-        , strf::width_if<is_char>(4)
-        ) &=
-    {
-         'a',
-         {'b', {"", 2}},
-         {'c', {"", 0}},
-         {'|', 0},
+    TEST("a")      &= { {strf::join_left(0, '.'), {'a'}} };
+    TEST("   a")   &= { {strf::join_left(1, '.'), {strf::right('a', 4)}} };
+    TEST("   a..") &= { {strf::join_left(6, '.'), {strf::right('a', 4)}} };
 
-         {'a', 3},
-         {'b', {3, "", 2}},
-         {'c', {3, "", 0}},
-         {'|', 0},
+    TEST("  aa")   &= { {strf::join_left(2, '.'), {strf::multi('a', 2) > 4}} };
+    TEST("  aa")   &= { {strf::join_left(2, '.'), {strf::multi('a', 2) > 4}} };
+    TEST("  aa")   &= { {strf::join_left(4, '.'), {strf::multi('a', 2) > 4}} };
+    TEST("  aa..") &= { {strf::join_left(6, '.'), {strf::multi('a', 2) > 4}} };
 
-         {'a', {3, "<"}},
-         {'b', {3, "<", 2}},
-         {'c', {3, "<", 0}},
-         {'|', 0},
+    TEST("aaaa")   &= { {strf::join_left(2, '.'), {strf::multi('a', 4) > 2}} };
+    TEST("aaaa")   &= { {strf::join_left(4, '.'), {strf::multi('a', 4) > 2}} };
+    TEST("aaaa..") &= { {strf::join_left(6, '.'), {strf::multi('a', 4) > 2}} };
 
-         {'a', {3, "="}},
-         {'b', {3, "=", 2}},
-         {'c', {3, "=", 0}},
-         {'|', 0},
+    TEST("aaaa")   &= { {strf::join_left(2, '.'), {strf::multi('a', 4) > 4}} };
+    TEST("aaaa")   &= { {strf::join_left(4, '.'), {strf::multi('a', 4) > 4}} };
+    TEST("aaaa..") &= { {strf::join_left(6, '.'), {strf::multi('a', 4) > 4}} };
 
-         {'a', {3, ">"}},
-         {'b', {3, ">", 2}},
-         {'c', {3, ">", 0}},
-    };
-
-    TEST("---a--bb----|--a-bb---|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char>(U'-')
-        , strf::width_if<is_char>(4)
-        , strf::internal_if<is_char>
-        ) &=
-    {
-         'a',
-         {'b', {"", 2}},
-         {'c', {"", 0}},
-         {'|', 0},
-
-         {'a', 3},
-         {'b', {3, "", 2}},
-         {'c', {3, "", 0}},
-         {'|', 0},
-
-         {'a', {3, "<"}},
-         {'b', {3, "<", 2}},
-         {'c', {3, "<", 0}},
-         {'|', 0},
-
-         {'a', {3, "="}},
-         {'b', {3, "=", 2}},
-         {'c', {3, "=", 0}},
-         {'|', 0},
-
-         {'a', {3, ">"}},
-         {'b', {3, ">", 2}},
-         {'c', {3, ">", 0}},
-    };
-
-    TEST("---a--bb----|--a-bb---|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char>(U'-')
-        , strf::width_if<is_char>(4)
-        , strf::right_if<is_char>
-        ) &=
-    {
-         'a',
-         {'b', {"", 2}},
-         {'c', {"", 0}},
-         {'|', 0},
-
-         {'a', 3},
-         {'b', {3, "", 2}},
-         {'c', {3, "", 0}},
-         {'|', 0},
-
-         {'a', {3, "<"}},
-         {'b', {3, "<", 2}},
-         {'c', {3, "<", 0}},
-         {'|', 0},
-
-         {'a', {3, "="}},
-         {'b', {3, "=", 2}},
-         {'c', {3, "=", 0}},
-         {'|', 0},
-
-         {'a', {3, ">"}},
-         {'b', {3, ">", 2}},
-         {'c', {3, ">", 0}},
-    };
-
-
-    TEST("a---bb------|a--bb----|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char>(U'-')
-        , strf::width_if<is_char>(4)
-        , strf::left_if<is_char>
-        ) &=
-    {
-         'a',
-         {'b', {"", 2}},
-         {'c', {"", 0}},
-         {'|', 0},
-
-         {'a', 3},
-         {'b', {3, "", 2}},
-         {'c', {3, "", 0}},
-         {'|', 0},
-
-         {'a', {3, "<"}},
-         {'b', {3, "<", 2}},
-         {'c', {3, "<", 0}},
-         {'|', 0},
-
-         {'a', {3, "="}},
-         {'b', {3, "=", 2}},
-         {'c', {3, "=", 0}},
-         {'|', 0},
-
-         {'a', {3, ">"}},
-         {'b', {3, ">", 2}},
-         {'c', {3, ">", 0}},
-    };
-    
     return report_errors() || boost::report_errors();
 }
 

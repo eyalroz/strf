@@ -43,161 +43,42 @@ int main()
     TEST (U"\U00010000") &= {U'\U00010000'};
     TEST (U"\U0010ffff") &= {U'\U0010ffff'};
 
-    // width, alignment, and repetitions
-    TEST("aaaa|bbbb|cccc  |    |aaaa|bbbb|  cccc|    ") &=
-        {
-            {U'a', {2, "<", 4}}, U'|',
-            {U'b', {4, "<", 4}}, U'|',
-            {U'c', {6, "<", 4}}, U'|',
-            {U'd', {4, "<", 0}}, U'|',
+    TEST("a") &= { U'a' };
+    TEST("aaaa") &= { strf::multi(U'a', 4) };
+    TEST("  aa") &= { strf::multi(U'a', 2) > 4 };
 
-            {U'a', {2, ">", 4}}, U'|',
-            {U'b', {4, ">", 4}}, U'|',
-            {U'c', {6, ">", 4}}, U'|',
-            {U'd', {4, "<", 0}}
-        };
+    TEST("    a") &= { strf::right(U'a', 5) };
+    TEST("a    ") &= { strf::left(U'a', 5)  };
+    TEST("aa   ") &= { strf::multi(U'a', 2) < 5 };
 
+    TEST("....a") &= { strf::right(U'a', 5, '.')  };
+    TEST("a....") &= { strf::left(U'a', 5, '.')   };
+    TEST("..a..") &= { strf::center(U'a', 5, '.') };
 
-    // width calculations inside joins
-    TEST("aaaa|  bb|cccc|  dd|eeee--|  ff--") &=
-        {
-            {strf::join_left(2, U'-'), {{U'a', {2, "", 4}}}}, U'|',
-            {strf::join_left(2, U'-'), {{U'b', {4, "", 2}}}}, U'|',
-            {strf::join_left(4, U'-'), {{U'c', {2, "", 4}}}}, U'|',
-            {strf::join_left(4, U'-'), {{U'd', {4, "", 2}}}}, U'|',
-            {strf::join_left(6, U'-'), {{U'e', {2, "", 4}}}}, U'|',
-            {strf::join_left(6, U'-'), {{U'f', {4, "", 2}}}}
-        };
+    TEST("...aa") &= { strf::right(U'a', 5, '.').multi(2)  };
+    TEST("aa...") &= { strf::left(U'a', 5, '.').multi(2)   };
+    TEST(".aa..") &= { strf::center(U'a', 5, '.').multi(2) };
 
+    TEST(".....") &= { strf::right(U'a', 5, '.').multi(0)  };
+    TEST(".....") &= { strf::left(U'a', 5, '.').multi(0)   };
+    TEST(".....") &= { strf::center(U'a', 5, '.').multi(0) };
 
+    TEST("a")      &= { {strf::join_left(0, '.'), {U'a'}} };
+    TEST("   a")   &= { {strf::join_left(1, '.'), {strf::right(U'a', 4)}} };
+    TEST("   a..") &= { {strf::join_left(6, '.'), {strf::right(U'a', 4)}} };
 
-    // facets
-    TEST("---a--bb----|--a-bb---|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char32>(U'-')
-        , strf::width_if<is_char32>(4)) &=
-        {
-            U'a',
-            {U'b', {"", 2}},
-            {U'c', {"", 0}},
-            {U'|', 0},
+    TEST("  aa")   &= { {strf::join_left(2, '.'), {strf::multi(U'a', 2) > 4}} };
+    TEST("  aa")   &= { {strf::join_left(2, '.'), {strf::multi(U'a', 2) > 4}} };
+    TEST("  aa")   &= { {strf::join_left(4, '.'), {strf::multi(U'a', 2) > 4}} };
+    TEST("  aa..") &= { {strf::join_left(6, '.'), {strf::multi(U'a', 2) > 4}} };
 
-            {U'a', 3},
-            {U'b', {3, "", 2}},
-            {U'c', {3, "", 0}},
-            {U'|', 0},
+    TEST("aaaa")   &= { {strf::join_left(2, '.'), {strf::multi(U'a', 4) > 2}} };
+    TEST("aaaa")   &= { {strf::join_left(4, '.'), {strf::multi(U'a', 4) > 2}} };
+    TEST("aaaa..") &= { {strf::join_left(6, '.'), {strf::multi(U'a', 4) > 2}} };
 
-            {U'a', {3, "<"}},
-            {U'b', {3, "<", 2}},
-            {U'c', {3, "<", 0}},
-            {U'|', 0},
-
-            {U'a', {3, "="}},
-            {U'b', {3, "=", 2}},
-            {U'c', {3, "=", 0}},
-            {U'|', 0},
-
-            {U'a', {3, ">"}},
-            {U'b', {3, ">", 2}},
-            {U'c', {3, ">", 0}},
-        };
-
-    TEST("---a--bb----|--a-bb---|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char32>(U'-')
-        , strf::width_if<is_char32>(4)
-        , strf::internal_if<is_char32>
-        ) &=
-    {
-         U'a',
-         {U'b', {"", 2}},
-         {U'c', {"", 0}},
-         {U'|', 0},
-
-         {U'a', 3},
-         {U'b', {3, "", 2}},
-         {U'c', {3, "", 0}},
-         {U'|', 0},
-
-         {U'a', {3, "<"}},
-         {U'b', {3, "<", 2}},
-         {U'c', {3, "<", 0}},
-         {U'|', 0},
-
-         {U'a', {3, "="}},
-         {U'b', {3, "=", 2}},
-         {U'c', {3, "=", 0}},
-         {U'|', 0},
-
-         {U'a', {3, ">"}},
-         {U'b', {3, ">", 2}},
-         {U'c', {3, ">", 0}},
-    };
-
-    TEST("---a--bb----|--a-bb---|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char32>(U'-')
-        , strf::width_if<is_char32>(4)
-        , strf::right_if<is_char32>
-        ) &=
-    {
-         U'a',
-         {U'b', {"", 2}},
-         {U'c', {"", 0}},
-         {U'|', 0},
-
-         {U'a', 3},
-         {U'b', {3, "", 2}},
-         {U'c', {3, "", 0}},
-         {U'|', 0},
-
-         {U'a', {3, "<"}},
-         {U'b', {3, "<", 2}},
-         {U'c', {3, "<", 0}},
-         {U'|', 0},
-
-         {U'a', {3, "="}},
-         {U'b', {3, "=", 2}},
-         {U'c', {3, "=", 0}},
-         {U'|', 0},
-
-         {U'a', {3, ">"}},
-         {U'b', {3, ">", 2}},
-         {U'c', {3, ">", 0}},
-    };
-
-
-    TEST("a---bb------|a--bb----|a--bb----|--a-bb---|--a-bb---")
-        .with
-        ( strf::fill_if<is_char32>(U'-')
-        , strf::width_if<is_char32>(4)
-        , strf::left_if<is_char32>
-        ) &=
-    {
-         U'a',
-         {U'b', {"", 2}},
-         {U'c', {"", 0}},
-         {U'|', 0},
-
-         {U'a', 3},
-         {U'b', {3, "", 2}},
-         {U'c', {3, "", 0}},
-         {U'|', 0},
-
-         {U'a', {3, "<"}},
-         {U'b', {3, "<", 2}},
-         {U'c', {3, "<", 0}},
-         {U'|', 0},
-
-         {U'a', {3, "="}},
-         {U'b', {3, "=", 2}},
-         {U'c', {3, "=", 0}},
-         {U'|', 0},
-
-         {U'a', {3, ">"}},
-         {U'b', {3, ">", 2}},
-         {U'c', {3, ">", 0}},
-    };
+    TEST("aaaa")   &= { {strf::join_left(2, '.'), {strf::multi(U'a', 4) > 4}} };
+    TEST("aaaa")   &= { {strf::join_left(4, '.'), {strf::multi(U'a', 4) > 4}} };
+    TEST("aaaa..") &= { {strf::join_left(6, '.'), {strf::multi(U'a', 4) > 4}} };
 
     return report_errors() || boost::report_errors();
 }

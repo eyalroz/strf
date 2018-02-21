@@ -11,54 +11,53 @@ int main()
     namespace strf = boost::stringify::v0;
 
     {
-        TEST("abc")     &= { "abc" };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::width(6))   &= { "abc" };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::width(4))   &= { {"abc", 6} };
-        TEST("abc~~~") .with(strf::fill(U'~'))                   &= { {"abc", {6, "<"}} };
-        TEST("abc~~~") .with(strf::fill(U'~'), strf::left)       &= { {"abc", 6} };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::internal)   &= { {"abc", 6} };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::left)       &= { {"abc", {6, ">"}} };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::left)       &= { {"abc", {6, "="}} };
-        TEST("   abc") &= { {strf::join_right(6), {"abc"}} };
+        TEST("abc")      &= { "abc" };
+        TEST("   abc")   &= { strf::right("abc", 6) };
+        TEST("abc...")   &= { strf::left    ("abc", 6, '.') };
+        TEST("...abc")   &= { strf::right   ("abc", 6, '.') };
+        TEST(".abc..")   &= { strf::center  ("abc", 6, '.') };
+        TEST("     abc")   &= { {strf::join_right(8), {"abc"}} };
+        TEST("...abc~~")   &= { {strf::join_right(8, '.'), {strf::left("abc", 5, U'~')}} };
+        TEST(".....abc")   &= { {strf::join_right(8, '.'), {strf::left("abc", 3, U'~')}} };
+        TEST(".....abc")   &= { {strf::join_right(8, '.'), {strf::left("abc", 2, U'~')}} };
 
-        TEST("   abcdefghi") .with(strf::width(3))  &= { "", {"abc", ">"}, {"def", "<"}, {"ghi", "="} };
-        TEST("  abcdefghi")  .with(strf::width(2))  &= { "", {"abc", ">"}, {"def", "<"}, {"ghi", "="} };
-        TEST("abcdefghi")    .with(strf::width(0))  &= { "", {"abc", ">"}, {"def", "<"}, {"ghi", "="} };
+        TEST("   abcdefghi") &= { strf::right("", 3), strf::right("abc", 3), strf::left("def", 3), strf::center("ghi", 3) };
+        TEST("  abcdefghi")  &= { strf::right("", 2), strf::right("abc", 2), strf::left("def", 2), strf::center("ghi", 2) };
+        TEST("abcdefghi")    &= { strf::right("", 0), strf::right("abc", 0), strf::left("def", 0), strf::center("ghi", 0) };
     }
 
     {
         wchar_t abc[] = L"abc";
         wchar_t def[] = L"def";
         wchar_t ghi[] = L"ghi";
+        TEST(L"abc")      &= { abc };
+        TEST(L"   abc")   &= { strf::right(abc, 6) };
+        TEST(L"abc...")   &= { strf::left    (abc, 6, '.') };
+        TEST(L"...abc")   &= { strf::right   (abc, 6, '.') };
+        TEST(L".abc..")   &= { strf::center  (abc, 6, '.') };
+        TEST(L"     abc")   &= { {strf::join_right(8), {abc}} };
+        TEST(L"...abc~~")   &= { {strf::join_right(8, '.'), {strf::left(abc, 5, U'~')}} };
+        TEST(L".....abc")   &= { {strf::join_right(8, '.'), {strf::left(abc, 3, U'~')}} };
+        TEST(L".....abc")   &= { {strf::join_right(8, '.'), {strf::left(abc, 2, U'~')}} };
 
-        TEST(L"abc")  &= { abc };
-        TEST(L"~~~abc") .with(strf::fill(U'~'), strf::width(6))   &= { abc };
-        TEST(L"~~~abc") .with(strf::fill(U'~'), strf::width(4))   &= { {abc, 6} };
-        TEST(L"abc~~~") .with(strf::fill(U'~'))                   &= { {abc, {6, "<"}} };
-        TEST(L"abc~~~") .with(strf::fill(U'~'), strf::left)       &= { {abc, 6} };
-        TEST(L"~~~abc") .with(strf::fill(U'~'), strf::internal)   &= { {abc, 6} };
-        TEST(L"~~~abc") .with(strf::fill(U'~'), strf::left)       &= { {abc, {6, ">"}} };
-        TEST(L"~~~abc") .with(strf::fill(U'~'), strf::left)       &= { {abc, {6, "="}} };
-
-        TEST(L"   abcdefghi") .with(strf::width(3))  &= { L"", {abc, ">"}, {def, "<"}, {ghi, "="} };
-        TEST(L"  abcdefghi")  .with(strf::width(2))  &= { L"", {abc, ">"}, {def, "<"}, {ghi, "="} };
-        TEST(L"abcdefghi")    .with(strf::width(0))  &= { L"", {abc, ">"}, {def, "<"}, {ghi, "="} };
-        TEST(L"   abc")     &= { {strf::join_right(6), {abc}} };
+        TEST(L"   abcdefghi") &= { strf::right(L"", 3), strf::right(abc, 3), strf::left(def, 3), strf::center(ghi, 3) };
+        TEST(L"  abcdefghi")  &= { strf::right(L"", 2), strf::right(abc, 2), strf::left(def, 2), strf::center(ghi, 2) };
+        TEST(L"abcdefghi")    &= { strf::right(L"", 0), strf::right(abc, 0), strf::left(def, 0), strf::center(ghi, 0) };
     }
 
 
     {
         std::string abc{ "abc" };
 
-        TEST("abc")  &= { abc };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::width(6))   &= { abc };
+        TEST("abc")     &= { abc };
+        TEST("   abc")  &= { strf::right(abc, 6) };
     }
 
     {
         std::wstring abc{ L"abc" };
 
-        TEST(L"abc")  &= { abc };
-        TEST(L"~~~abc") .with(strf::fill(U'~'), strf::width(6))   &= { abc };
+        TEST(L"abc")     &= { abc };
+        TEST(L"   abc")  &= { strf::right(abc, 6) };
     }
 
 #if defined(BOOST_STRINGIFY_HAS_STD_STRING_VIEW)
@@ -66,14 +65,14 @@ int main()
     {
         std::string_view abc{"abcdef", 3};
 
-        TEST("abc")  &= { abc };
-        TEST("~~~abc") .with(strf::fill(U'~'), strf::width(6))   &= { abc };
+        TEST("abc")    &= { abc };
+        TEST("   abc") &= { strf::right(abc, 6) };
     }
 
 #endif
 
     {   // convertion from utf32
-    
+
         TEST(u8"--\u0080--\u07ff--\u0800--\uffff--\U00010000--\U0010ffff")
             &= { U"--\u0080--\u07ff--\u0800--\uffff--\U00010000--\U0010ffff" };
 
@@ -83,22 +82,21 @@ int main()
         char32_t abc[] = U"abc";
         char32_t def[] = U"def";
         char32_t ghi[] = U"ghi";
+        TEST("abc")      &= { abc };
+        TEST("   abc")   &= { strf::right(abc, 6) };
+        TEST("abc...")   &= { strf::left    (abc, 6, '.') };
+        TEST("...abc")   &= { strf::right   (abc, 6, '.') };
+        TEST(".abc..")   &= { strf::center  (abc, 6, '.') };
+        TEST("     abc")   &= { {strf::join_right(8), {abc}} };
+        TEST("...abc~~")   &= { {strf::join_right(8, '.'), {strf::left(abc, 5, U'~')}} };
+        TEST(".....abc")   &= { {strf::join_right(8, '.'), {strf::left(abc, 3, U'~')}} };
+        TEST(".....abc")   &= { {strf::join_right(8, '.'), {strf::left(abc, 2, U'~')}} };
 
-        TEST(u8"abc")  &= { abc };
-        TEST(u8"~~~abc") .with(strf::fill(U'~'), strf::width(6))   &= { abc };
-        TEST(u8"~~~abc") .with(strf::fill(U'~'), strf::width(4))   &= { {abc, 6} };
-        TEST(u8"abc~~~") .with(strf::fill(U'~'))                   &= { {abc, {6, "<"}} };
-        TEST(u8"abc~~~") .with(strf::fill(U'~'), strf::left)       &= { {abc, 6} };
-        TEST(u8"~~~abc") .with(strf::fill(U'~'), strf::internal)   &= { {abc, 6} };
-        TEST(u8"~~~abc") .with(strf::fill(U'~'), strf::left)       &= { {abc, {6, ">"}} };
-        TEST(u8"~~~abc") .with(strf::fill(U'~'), strf::left)       &= { {abc, {6, "="}} };
+        TEST("   abcdefghi") &= { strf::right(U"", 3), strf::right(abc, 3), strf::left(def, 3), strf::center(ghi, 3) };
+        TEST("  abcdefghi")  &= { strf::right(U"", 2), strf::right(abc, 2), strf::left(def, 2), strf::center(ghi, 2) };
+        TEST("abcdefghi")    &= { strf::right(U"", 0), strf::right(abc, 0), strf::left(def, 0), strf::center(ghi, 0) };
 
-        TEST(u8"   abcdefghi") .with(strf::width(3))  &= { U"", {abc, ">"}, {def, "<"}, {ghi, "="} };
-        TEST(u8"  abcdefghi")  .with(strf::width(2))  &= { U"", {abc, ">"}, {def, "<"}, {ghi, "="} };
-        TEST(u8"abcdefghi")    .with(strf::width(0))  &= { U"", {abc, ">"}, {def, "<"}, {ghi, "="} };
-        TEST(u8"   abc")                              &= { {strf::join_right(6), {abc}} };
     }
-    
     int rc = report_errors() || boost::report_errors();
     return rc;
 }
