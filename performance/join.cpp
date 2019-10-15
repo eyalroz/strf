@@ -12,9 +12,9 @@ int main()
     char* dest_end = dest + sizeof(dest);
     (void) dest_end;
 
-    PRINT_BENCHMARK("strf::write(dest) (strf::join()('a', 'b', 'c', 'd'))")
+    PRINT_BENCHMARK("strf::write(dest) (strf::join('a', 'b', 'c', 'd'))")
     {
-        strf::write(dest) (strf::join()('a', 'b', 'c', 'd'));
+        strf::write(dest) (strf::join('a', 'b', 'c', 'd'));
     }
     PRINT_BENCHMARK("strf::write(dest) ('a', 'b', 'c', 'd')")
     {
