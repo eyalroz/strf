@@ -150,19 +150,39 @@ public:
         this->set_pos(this->buf_begin());
         this->set_end(this->buf_end());
     }
+
+    basic_string_appender_impl(string_type& str_, std::size_t size)
+        : stringify::v0::detail::basic_outbuf_noexcept_switch<NoExcept, CharT>
+            ( stringify::v0::outbuf_garbage_buf<CharT>()
+            , stringify::v0::outbuf_garbage_buf_end<CharT>() )
+        , _str(str_)
+    {
+        this->set_pos(this->buf_begin());
+        this->set_end(this->buf_end());
+        str_.reserve(str_.size() + size);
+    }
+
     basic_string_appender_impl() = delete;
     basic_string_appender_impl(const basic_string_appender_impl&) = delete;
+
+#if defined(BOOST_STRINGIFY_NO_CXX17_COPY_ELISION)
+
+    basic_string_appender_impl(basic_string_appender_impl&& r)
+        : basic_string_appender_impl(r._str)
+    {
+    }
+
+#else
+
     basic_string_appender_impl(basic_string_appender_impl&&) = delete;
+
+#endif
+
     ~basic_string_appender_impl() = default;
 
     void finish()
     {
         this->do_finish();
-    }
-
-    void do_reserve(std::size_t s)
-    {
-        _str.reserve(_str.size() + s);
     }
 
 private:
@@ -202,19 +222,37 @@ public:
         this->set_end(this->buf_end());
     }
 
+    basic_string_maker_impl(std::size_t size)
+        : stringify::v0::detail::basic_outbuf_noexcept_switch<NoExcept, CharT>
+            ( stringify::v0::outbuf_garbage_buf<CharT>()
+            , stringify::v0::outbuf_garbage_buf_end<CharT>() )
+    {
+        this->set_pos(this->buf_begin());
+        this->set_end(this->buf_end());
+        _str.reserve(size);
+    }
+
     basic_string_maker_impl(const basic_string_maker_impl&) = delete;
+
+#if defined(BOOST_STRINGIFY_NO_CXX17_COPY_ELISION)
+
+    basic_string_maker_impl(basic_string_maker_impl&& r)
+        : basic_string_maker_impl()
+    {
+    }
+
+#else
+
     basic_string_maker_impl(basic_string_maker_impl&&) = delete;
+
+#endif
+
     ~basic_string_maker_impl() = default;
 
     string_type finish()
     {
         this->do_finish();
         return std::move(_str);
-    }
-
-    void do_reserve(std::size_t s)
-    {
-        _str.reserve(s);
     }
 
 private:
@@ -229,8 +267,6 @@ private:
 
     string_type _str;
 };
-
-
 
 } // namespace detail
 
@@ -251,11 +287,6 @@ public:
     {
         this->do_recycle();
     }
-
-    void reserve(std::size_t s)
-    {
-        this->do_reserve(s);
-    }
 };
 
 template < typename CharT
@@ -274,11 +305,6 @@ public:
     void recycle() override
     {
         this->do_recycle();
-    }
-
-    void reserve(std::size_t s)
-    {
-        this->do_reserve(s);
     }
 };
 
@@ -299,11 +325,6 @@ public:
     {
         this->do_recycle();
     }
-
-    void reserve(std::size_t s)
-    {
-        this->do_reserve(s);
-    }
 };
 
 template < typename CharT
@@ -323,12 +344,59 @@ public:
     {
         this->do_recycle();
     }
-
-    void reserve(std::size_t s)
-    {
-        this->do_reserve(s);
-    }
 };
+
+template < typename CharT
+         , typename Traits = std::char_traits<CharT>
+         , typename Allocator = std::allocator<CharT> >
+class pre_sized_basic_string_maker final
+    : public stringify::v0::basic_outbuf<CharT>
+{
+public:
+
+    // pre_sized_basic_string_maker()
+    //     : stringify::v0::basic_outbuf<CharT>
+    //         ( stringify::v0::outbuf_garbage_buf<CharT>()
+    //         , stringify::v0::outbuf_garbage_buf_end<CharT>() )
+    // {
+    //     _str.append(_str.capacity(), (CharT)0);
+    //     this->set_pos(_str.data());
+    //     this->set_end(_str.data() + _str.size());
+    // }
+
+    pre_sized_basic_string_maker(std::size_t count)
+        : stringify::v0::basic_outbuf<CharT>
+            ( stringify::v0::outbuf_garbage_buf<CharT>()
+            , stringify::v0::outbuf_garbage_buf_end<CharT>() )
+        , _str(count, (CharT)0)
+    {
+        this->set_pos(_str.data());
+        this->set_end(_str.data() + count);
+    }
+
+    void recycle() override
+    {
+        std::size_t original_size = this->pos() - _str.data();
+        auto append_size = std::max
+            ( original_size
+            , stringify::v0::min_size_after_recycle<CharT>() );
+        _str.append(append_size, (CharT)0);
+        this->set_pos(_str.data() + original_size);
+        this->set_end(_str.data() + original_size + append_size);
+    }
+
+    std::basic_string<CharT, Traits, Allocator> finish()
+    {
+        _str.resize(this->pos() - _str.data());
+        return std::move(_str);
+    }
+
+private:
+
+    std::basic_string<CharT, Traits, Allocator> _str;
+};
+
+
 
 using string_appender = basic_string_appender<char>;
 using u16string_appender = basic_string_appender<char16_t>;
@@ -359,16 +427,91 @@ using u8string_maker_noexcept = basic_string_maker_noexcept<char8_t>;
 
 #endif
 
+
+namespace detail {
+
+template <typename CharT, typename Traits, typename Allocator>
+class basic_string_appender_factory
+{
+public:
+
+    using char_type = CharT;
+    using outbuf_type
+    = stringify::v0::basic_string_appender<CharT, Traits, Allocator>;
+    using finish_type = void;
+
+    basic_string_appender_factory
+        ( std::basic_string<CharT, Traits, Allocator>& str )
+        : _str(str)
+    {
+    }
+
+    basic_string_appender_factory(const basic_string_appender_factory&) = default;
+
+    outbuf_type create() const
+    {
+        return outbuf_type{_str};
+    }
+
+    outbuf_type create(std::size_t size) const
+    {
+        return outbuf_type{_str, size};
+    }
+
+    static void finish(outbuf_type& ob)
+    {
+        ob.finish();
+    }
+
+private:
+
+    std::basic_string<CharT, Traits, Allocator>& _str;
+};
+
+template < typename CharT
+         , typename Traits = std::char_traits<CharT>
+         , typename Allocator = std::allocator<CharT> >
+class basic_string_maker_factory
+{
+public:
+
+    using char_type = CharT;
+    using outbuf_type
+    = stringify::v0::basic_string_maker<CharT, Traits, Allocator>;
+    using sized_outbuf_type
+    = stringify::v0::pre_sized_basic_string_maker<CharT, Traits, Allocator>;
+
+    using finish_type = std::basic_string<CharT, Traits, Allocator>;
+
+    static outbuf_type create()
+    {
+        return outbuf_type{};
+    }
+
+    static auto create(std::size_t size)
+    {
+        return sized_outbuf_type{size};
+    }
+
+    static finish_type finish(outbuf_type& ob)
+    {
+        return ob.finish();
+    }
+
+    static finish_type finish(sized_outbuf_type& ob)
+    {
+        return ob.finish();
+    }
+};
+
+}
+
 template <typename CharT, typename Traits, typename Allocator>
 auto append(std::basic_string<CharT, Traits, Allocator>& str)
 {
-    using str_type = std::basic_string<CharT, Traits, Allocator>;
-    using writer = stringify::v0::basic_string_appender
-        < CharT, Traits, Allocator >;
-    return stringify::v0::dispatcher< stringify::v0::facets_pack<>
-                                    , writer
-                                    , str_type& >
-        (str);
+    return stringify::v0::dispatcher_no_reserve
+        < stringify::v0::detail::basic_string_appender_factory<CharT, Traits, Allocator> >
+        { str };
 }
 
 template <typename CharT, typename Traits, typename Allocator>
@@ -381,38 +524,32 @@ auto assign(std::basic_string<CharT, Traits, Allocator>& str)
 template< typename CharT
         , typename Traits = std::char_traits<CharT>
         , typename Allocator = std::allocator<CharT> >
-constexpr stringify::v0::dispatcher
-    < stringify::v0::facets_pack<>
-      , stringify::v0::basic_string_maker<CharT, Traits, Allocator> >
+constexpr stringify::v0::dispatcher_no_reserve
+    < stringify::v0::detail::basic_string_maker_factory<CharT, Traits, Allocator> >
     to_basic_string{};
 
 #if defined(__cpp_char8_t)
 
 constexpr stringify::v0::dispatcher
-    < stringify::v0::facets_pack<>
-    , stringify::v0::basic_string_maker<char8_t> >
+    < stringify::v0::detail::basic_string_maker_factory<char8_t> >
     to_u8string{};
 
 #endif
 
-constexpr stringify::v0::dispatcher
-    < stringify::v0::facets_pack<>
-    , stringify::v0::basic_string_maker<char> >
+constexpr stringify::v0::dispatcher_no_reserve
+    < stringify::v0::detail::basic_string_maker_factory<char> >
     to_string{};
 
-constexpr stringify::v0::dispatcher
-    < stringify::v0::facets_pack<>
-    , stringify::v0::basic_string_maker<char16_t> >
+constexpr stringify::v0::dispatcher_no_reserve
+    < stringify::v0::detail::basic_string_maker_factory<char16_t> >
     to_u16string{};
 
-constexpr stringify::v0::dispatcher
-    < stringify::v0::facets_pack<>
-    , stringify::v0::basic_string_maker<char32_t> >
+constexpr stringify::v0::dispatcher_no_reserve
+    < stringify::v0::detail::basic_string_maker_factory<char32_t> >
     to_u32string{};
 
-constexpr stringify::v0::dispatcher
-    < stringify::v0::facets_pack<>
-    , stringify::v0::basic_string_maker<wchar_t> >
+constexpr stringify::v0::dispatcher_no_reserve
+    < stringify::v0::detail::basic_string_maker_factory<wchar_t> >
     to_wstring{};
 
 

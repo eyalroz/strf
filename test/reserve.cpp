@@ -22,15 +22,28 @@ public:
     {
     }
 
+    reservation_tester(std::size_t size)
+        : strf::basic_outbuf<char>{ _buff, _buff + _buff_size }
+        , _buff{0}
+        , _reserved_size{size}
+    {
+    }
+
     reservation_tester(const reservation_tester&) = delete;
+
+#if defined(BOOST_STRINGIFY_NO_CXX17_COPY_ELISION)
+
+    reservation_tester(reservation_tester&& r)
+        : reservation_tester(r._reserved_size)
+    {
+    }
+
+#else
 
     reservation_tester(reservation_tester&&) = delete;
 
-    void reserve(std::size_t s)
-    {
-        _reserve_size = s;
-    }
-
+#endif
+    
     void recycle() override
     {
         this->set_pos(_buff);
@@ -38,25 +51,49 @@ public:
 
     std::size_t finish()
     {
-        return _reserve_size;
+        return _reserved_size;
     }
 
 private:
 
-    std::size_t _reserve_size = std::numeric_limits<std::size_t>::max();
+    std::size_t _reserved_size = 0;
 };
 
 
+class reservation_tester_factory
+{
+public:
+
+    using char_type = char;
+    using outbuf_type = reservation_tester;
+    using finish_type = std::size_t;
+
+    static outbuf_type create()
+    {
+        return {};
+    }
+
+    static auto create(std::size_t s)
+    {
+        return outbuf_type{s};
+    }
+
+    static auto finish(outbuf_type& s)
+    {
+        return s.finish();
+    }
+};
+
 constexpr auto reservation_test()
 {
-    return strf::dispatcher<strf::facets_pack<>, reservation_tester>();
+    return strf::dispatcher_no_reserve<reservation_tester_factory>();
 }
 
 
 int main()
 {
     // on non-const rval ref
-    constexpr std::size_t not_reserved = std::numeric_limits<std::size_t>::max();
+    constexpr std::size_t not_reserved = 0;
 
     {
         auto size = reservation_test()  ("abcd");
@@ -71,7 +108,7 @@ int main()
         BOOST_TEST_EQ(size, 4);
     }
 
-    // on non-const ref
+    // // on non-const ref
 
     {
         auto tester = reservation_test();
@@ -89,7 +126,7 @@ int main()
         BOOST_TEST_EQ(size, 4);
     }
 
-    // on const ref
+    // // on const ref
 
     {
         const auto tester = reservation_test();
@@ -107,7 +144,7 @@ int main()
         BOOST_TEST_EQ(size, 4);
     }
 
-    // on const rval ref
+    // // on const rval ref
 
     {
         const auto tester = reservation_test();

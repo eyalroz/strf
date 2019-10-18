@@ -12,16 +12,18 @@ class QStringCreator: public strf::basic_outbuf<char16_t>
 {
 public:
 
-    QStringCreator() : strf::basic_outbuf<char16_t>(_buffer, _buffer_size)
+    QStringCreator()
+        : strf::basic_outbuf<char16_t>(_buffer, _buffer_size)
     {
     }
 
-    void reserve(std::size_t size)
+    explicit QStringCreator(std::size_t size)
+        : strf::basic_outbuf<char16_t>(_buffer, _buffer_size)
     {
         Q_ASSERT(size < static_cast<std::size_t>(INT_MAX));
         _str.reserve(static_cast<int>(size));
     }
-
+    
     void recycle() override;
 
     QString finish();
@@ -64,7 +66,30 @@ QString QStringCreator::finish()
     return std::move(_str);
 }
 
-constexpr strf::dispatcher<strf::facets_pack<>, QStringCreator> toQString{};
+class QStringCreatorFactory
+{
+public:
+    using char_type = char16_t;
+    using finish_type = QString;
+    
+    QStringCreator create() const
+    {
+        return QStringCreator{};
+    }
+
+    QStringCreator create(std::size_t size) const
+    {
+        return QStringCreator{size};
+    }
+
+    static auto finish(QStringCreator& r)
+    {
+        return r.finish();
+    }
+};
+
+
+constexpr strf::dispatcher_no_reserve<QStringCreatorFactory> toQString{};
 
 int main()
 {

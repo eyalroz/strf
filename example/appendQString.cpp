@@ -16,7 +16,7 @@ public:
 
     QStringAppender(QString& str);
 
-    void reserve(std::size_t size);
+    explicit QStringAppender(QString& str, std::size_t size);
 
     void recycle() override;
 
@@ -40,6 +40,16 @@ QStringAppender::QStringAppender(QString& str)
     , _str(str)
 {
 }
+
+QStringAppender::QStringAppender(QString& str, std::size_t size)
+    : strf::basic_outbuf<char16_t>(_buffer, _buffer_size)
+    , _str(str)
+{
+    Q_ASSERT(_str.size() + size < static_cast<std::size_t>(INT_MAX));
+    _str.reserve(_str.size() + static_cast<int>(size));
+}
+
+
 //]
 
 //[QStringAppender_recycle
@@ -70,15 +80,6 @@ void QStringAppender::recycle()
 }
 //]
 
-
-//[QStringAppender_reserve
-void QStringAppender::reserve(std::size_t size)
-{
-    Q_ASSERT(_str.size() + size < static_cast<std::size_t>(INT_MAX));
-    _str.reserve(_str.size() + static_cast<int>(size));
-}
-//]
-
 //[QStringAppender_finish
 std::size_t QStringAppender::finish()
 {
@@ -91,13 +92,48 @@ std::size_t QStringAppender::finish()
 }
 //]
 
-//[QStringAppender_dispatcher
-inline auto append(QString& str)
+//[QStringAppender_factory
+
+class QStringAppenderFactory
 {
-    return strf::dispatcher<strf::facets_pack<>, QStringAppender, QString&> {str};
-}
+public:
+
+    using char_type = char16_t;
+    using finish_type = std::size_t;
+    
+    QStringAppenderFactory(QString& str)
+        : _str(str)
+    {}
+
+    QStringAppender create() const
+    {
+        return QStringAppender{_str};
+    }
+
+    QStringAppender create(std::size_t size) const
+    {
+        return QStringAppender{_str, size};
+    }
+
+    static auto finish(QStringAppender& r)
+    {
+        return r.finish();
+    }
+
+private:
+    
+    QString& _str;
+};
+
+
 //]
 
+//[QStringAppender_factory
+inline auto append(QString& str)
+{
+    return strf::dispatcher_no_reserve<QStringAppenderFactory> {str};
+}
+//]
 
 
 //[QStringAppender_use
