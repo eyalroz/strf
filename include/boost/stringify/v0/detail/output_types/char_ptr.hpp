@@ -19,8 +19,7 @@ class basic_cstr_writer_factory
 public:
 
     using char_type = CharT;
-    using outbuf_type = basic_cstr_writer<CharT>;
-    using finish_type = typename outbuf_type::result;
+    using finish_type = typename basic_cstr_writer<CharT>::result;
     
     constexpr basic_cstr_writer_factory(CharT* dest, CharT* dest_end) noexcept 
         : _dest(dest)
@@ -31,17 +30,16 @@ public:
 
     constexpr basic_cstr_writer_factory(const basic_cstr_writer_factory&) = default;
 
-    outbuf_type create() const noexcept
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return outbuf_type{_dest, _dest_end};
-    }
-
-    static finish_type finish(outbuf_type& ob) noexcept
-    {
+        basic_cstr_writer<CharT> ob(_dest, _dest_end);
+        stringify::v0::detail::write_args(ob, printers...);;
         return ob.finish();
     }
     
 private:
+
     CharT* _dest;
     CharT* _dest_end;
 };

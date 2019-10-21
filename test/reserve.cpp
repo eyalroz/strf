@@ -68,19 +68,20 @@ public:
     using outbuf_type = reservation_tester;
     using finish_type = std::size_t;
 
-    static outbuf_type create()
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return {};
+        outbuf_type ob;
+        strf::detail::write_args(ob, printers...);;
+        return ob.finish();
     }
 
-    static auto create(std::size_t s)
+    template <typename ... Printers>
+    finish_type sized_write(std::size_t size, const Printers& ... printers) const
     {
-        return outbuf_type{s};
-    }
-
-    static auto finish(outbuf_type& s)
-    {
-        return s.finish();
+        outbuf_type ob{size};
+        strf::detail::write_args(ob, printers...);;
+        return ob.finish();
     }
 };
 

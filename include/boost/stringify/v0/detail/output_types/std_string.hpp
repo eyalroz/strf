@@ -396,8 +396,6 @@ private:
     std::basic_string<CharT, Traits, Allocator> _str;
 };
 
-
-
 using string_appender = basic_string_appender<char>;
 using u16string_appender = basic_string_appender<char16_t>;
 using u32string_appender = basic_string_appender<char32_t>;
@@ -436,8 +434,6 @@ class basic_string_appender_factory
 public:
 
     using char_type = CharT;
-    using outbuf_type
-    = stringify::v0::basic_string_appender<CharT, Traits, Allocator>;
     using finish_type = void;
 
     basic_string_appender_factory
@@ -448,18 +444,20 @@ public:
 
     basic_string_appender_factory(const basic_string_appender_factory&) = default;
 
-    outbuf_type create() const
+    template <typename ... Printers>
+    void write(const Printers& ... printers) const
     {
-        return outbuf_type{_str};
+        stringify::v0::basic_string_appender<CharT, Traits, Allocator> ob(_str);
+        stringify::v0::detail::write_args(ob, printers...);;
+        ob.finish();
     }
 
-    outbuf_type create(std::size_t size) const
+    template <typename ... Printers>
+    void sized_write(std::size_t size, const Printers& ... printers) const
     {
-        return outbuf_type{_str, size};
-    }
-
-    static void finish(outbuf_type& ob)
-    {
+        _str.reserve(_str.size() + size);
+        stringify::v0::basic_string_appender<CharT, Traits, Allocator> ob(_str);
+        stringify::v0::detail::write_args(ob, printers...);;
         ob.finish();
     }
 
@@ -476,30 +474,22 @@ class basic_string_maker_factory
 public:
 
     using char_type = CharT;
-    using outbuf_type
-    = stringify::v0::basic_string_maker<CharT, Traits, Allocator>;
-    using sized_outbuf_type
-    = stringify::v0::pre_sized_basic_string_maker<CharT, Traits, Allocator>;
-
     using finish_type = std::basic_string<CharT, Traits, Allocator>;
 
-    static outbuf_type create()
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return outbuf_type{};
-    }
-
-    static auto create(std::size_t size)
-    {
-        return sized_outbuf_type{size};
-    }
-
-    static finish_type finish(outbuf_type& ob)
-    {
+        stringify::v0::basic_string_maker<CharT, Traits, Allocator> ob;
+        stringify::v0::detail::write_args(ob, printers...);;
         return ob.finish();
     }
 
-    static finish_type finish(sized_outbuf_type& ob)
+    template <typename ... Printers>
+    finish_type sized_write(std::size_t size, const Printers& ... printers) const
     {
+        stringify::v0::pre_sized_basic_string_maker<CharT, Traits, Allocator>
+            ob(size);
+        stringify::v0::detail::write_args(ob, printers...);;
         return ob.finish();
     }
 };

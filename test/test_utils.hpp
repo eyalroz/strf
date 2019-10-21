@@ -365,18 +365,19 @@ public:
     }
 
     input_tester_factory(const input_tester_factory& ) = default;
+    input_tester_factory(input_tester_factory&& ) = default;
 
-    test_utils::input_tester<CharT> create(std::size_t size) const
+    template <typename ... Printers>
+    finish_type sized_write(std::size_t size, const Printers& ... printers) const
     {
-        return {_expected, _filename, _line, _function, _reserve_factor, size};
-    }
-
-    static void finish(test_utils::input_tester<CharT>& t)
-    {
-        t.finish();
+        test_utils::input_tester<CharT> ob
+            { _expected, _filename, _line, _function, _reserve_factor, size };
+        boost::stringify::v0::detail::write_args(ob, printers...);
+        return ob.finish();
     }
     
 private:
+
     std::basic_string<CharT> _expected;
     const char* _filename;
     const char* _function;

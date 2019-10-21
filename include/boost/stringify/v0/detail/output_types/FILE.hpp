@@ -172,12 +172,11 @@ public:
     constexpr narrow_cfile_writer_factory
         (const narrow_cfile_writer_factory&) = default;
 
-    outbuf_type create() const noexcept
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return outbuf_type{_file};
-    }
-    static finish_type finish(outbuf_type& ob) noexcept
-    {
+        outbuf_type ob(_file);
+        stringify::v0::detail::write_args(ob, printers...);;
         return ob.finish();
     }
 
@@ -199,13 +198,11 @@ public:
 
     constexpr wide_cfile_writer_factory(const wide_cfile_writer_factory&) = default;
 
-    outbuf_type create() const noexcept
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return outbuf_type{_file};
-    }
-
-    static finish_type finish(outbuf_type& ob) noexcept
-    {
+        outbuf_type ob(_file);
+        stringify::v0::detail::write_args(ob, printers...);;
         return ob.finish();
     }
 

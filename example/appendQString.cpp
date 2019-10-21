@@ -94,30 +94,35 @@ std::size_t QStringAppender::finish()
 
 //[QStringAppender_factory
 
-class QStringAppenderFactory
+class QStringAppenderCreator
 {
 public:
 
     using char_type = char16_t;
     using finish_type = std::size_t;
     
-    QStringAppenderFactory(QString& str)
+    QStringAppenderCreator(QString& str)
         : _str(str)
     {}
 
-    QStringAppender create() const
+    QStringAppenderCreator(const QStringAppenderCreator& str);
+
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return QStringAppender{_str};
+        QStringAppender ob(_str);
+        strf::detail::write_args(ob, printers...);;
+        return ob.finish();
     }
 
-    QStringAppender create(std::size_t size) const
+    template <typename ... Printers>
+    finish_type sized_write( std::size_t size
+                           , const Printers& ... printers ) const
     {
-        return QStringAppender{_str, size};
-    }
-
-    static auto finish(QStringAppender& r)
-    {
-        return r.finish();
+        _str.reserve(_str.size() + size);
+        QStringAppender ob(_str);
+        strf::detail::write_args(ob, printers...);;
+        return ob.finish();
     }
 
 private:
@@ -131,7 +136,7 @@ private:
 //[QStringAppender_factory
 inline auto append(QString& str)
 {
-    return strf::dispatcher_no_reserve<QStringAppenderFactory> {str};
+    return strf::dispatcher_no_reserve<QStringAppenderCreator> {str};
 }
 //]
 

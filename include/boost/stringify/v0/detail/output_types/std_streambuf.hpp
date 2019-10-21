@@ -98,8 +98,8 @@ class basic_streambuf_writer_factory
 {
 public:
 
-    using outbuf_type = stringify::v0::basic_streambuf_writer<CharT, Traits>;
     using char_type = CharT;
+    using outbuf_type = stringify::v0::basic_streambuf_writer<CharT, Traits>;
     using finish_type = typename outbuf_type::result;
         
     basic_streambuf_writer_factory
@@ -110,14 +110,12 @@ public:
 
     basic_streambuf_writer_factory(const basic_streambuf_writer_factory&) = default;
 
-    outbuf_type create() const
+    template <typename ... Printers>
+    finish_type write(const Printers& ... printers) const
     {
-        return outbuf_type{_dest};
-    }
-
-    static finish_type finish(outbuf_type& w)
-    {
-        return w.finish();
+        outbuf_type ob(_dest);
+        stringify::v0::detail::write_args(ob, printers...);;
+        return ob.finish();
     }
     
 private:

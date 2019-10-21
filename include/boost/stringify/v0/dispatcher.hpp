@@ -5,9 +5,9 @@
 //  (See accompanying file LICENSE_1_0.txt or copy at
 //  http://www.boost.org/LICENSE_1_0.txt)
 
-#include <boost/stringify/v0/printer.hpp>
 #include <boost/stringify/v0/facets_pack.hpp>
 #include <boost/stringify/v0/detail/tr_string.hpp>
+#include <boost/stringify/v0/detail/printers_tuple.hpp>
 
 BOOST_STRINGIFY_V0_NAMESPACE_BEGIN
 
@@ -248,13 +248,14 @@ public:
                , std::move(self._fpack) };
     }
 
-    // template <typename ... Args>
-    // finish_type operator()(const Args& ... args) const &
-    // {
-    //     const auto& self = static_cast<const _dispatcher_type&>(*this);
-    //     return self._write
-    //         (_as_printer_cref(make_printer<char_type, FPack>(self._fpack, args))...);
-    // }
+    template <typename ... Args>
+    finish_type operator()(const Args& ... args) const &
+    {
+        const auto& self = static_cast<const _dispatcher_type&>(*this);
+
+        return self._write
+            (_as_printer_cref(make_printer<char_type, FPack>(self._fpack, args))...);
+    }
 
     // template <typename ... Args>
     // finish_type operator()(const Args& ... args) &&
@@ -271,6 +272,7 @@ public:
         ( const std::basic_string_view<char_type>& str
         , const Args& ... args ) const &
     {
+
        _tr_write(str.begin, str.end(), args...);
     }
 
@@ -289,8 +291,7 @@ public:
         ( const char_type* str
         , const Args& ... args ) const &
     {
-        const auto& self = static_cast<const _dispatcher_type&>(*this);
-        return self._tr_write
+        return _tr_write
             ( str, str + std::char_traits<char_type>::length(str), args... );
     }
 
@@ -307,38 +308,50 @@ public:
 
 private:
 
-    // static inline const stringify::v0::printer<char_type>&
-    // _as_printer_cref(const stringify::v0::printer<char_type>& p)
-    // {
-    //     return p;
-    // }
+    static inline const stringify::v0::printer<char_type>&
+    _as_printer_cref(const stringify::v0::printer<char_type>& p)
+    {
+        return p;
+    }
 
-    // static inline const stringify::v0::printer<char_type>*
-    // _as_printer_cptr(const stringify::v0::printer<char_type>& p)
-    // {
-    //      return &p;
-    // }
+    static inline const stringify::v0::printer<char_type>*
+    _as_printer_cptr(const stringify::v0::printer<char_type>& p)
+    {
+         return &p;
+    }
 
+    template < typename ... Args >
+    finish_type _tr_write( const char_type* str
+                         , const char_type* str_end
+                         , const Args& ... args) const &
+    {
+        const auto& self = static_cast<const _dispatcher_type&>(*this);
+        return _tr_write_2
+            ( str
+            , str_end
+            , { _as_printer_cptr( make_printer<char_type, FPack>
+                                     (self._fpack, args))... } );
+    }
 
-    // template < typename ... Args >
-    // finish_type _tr_write( const char_type* str
-    //                      , const char_type* str_end
-    //                      , const Args& ... args) const &
-    // {
-    //     const auto& self = static_cast<const _dispatcher_type&>(*this);
+    template < typename ... Args >
+    finish_type _tr_write_2
+        ( const char_type* str
+        , const char_type* str_end
+        , std::initializer_list<const stringify::v0::printer<char_type>*> p ) const &
+    {
+        const auto& self = static_cast<const _dispatcher_type&>(*this);
 
-    //     using catenc = stringify::v0::encoding_c<char_type>;
-    //     using caterr = stringify::v0::tr_invalid_arg_c;
-    //     decltype(auto) enc = stringify::v0::get_facet<catenc, void>(self._fpack);
-    //     decltype(auto) arg_err = stringify::v0::get_facet<caterr, void>(self._fpack);
-    //     return self._tr_write
-    //         ( str
-    //         , str_end
-    //         , { _as_printer_cptr( make_printer<char_type, FPack>
-    //                                                  (self._fpack, args))... }
-    //         , enc
-    //         , arg_err );
-    // }
+        using catenc = stringify::v0::encoding_c<char_type>;
+        using caterr = stringify::v0::tr_invalid_arg_c;
+        decltype(auto) enc = stringify::v0::get_facet<catenc, void>(self._fpack);
+        decltype(auto) arg_err = stringify::v0::get_facet<caterr, void>(self._fpack);
+
+        stringify::v0::detail::tr_string_printer<char_type> tr_printer
+            (p, str, str_end, enc, arg_err);
+
+        return self._write(tr_printer);
+    }
+
 
     // template < typename ... Args >
     // finish_type _tr_write( const char_type* str
@@ -411,6 +424,7 @@ public:
     constexpr dispatcher_no_reserve(dispatcher_no_reserve&&) = default;
 
     using _common::facets;
+    using _common::operator();
     using _common::tr;
     using _common::reserve_calc;
     using _common::reserve;
@@ -430,16 +444,6 @@ public:
     constexpr const dispatcher_no_reserve&& no_reserve() const &&
     {
         return std::move(*this);
-    }
-
-    template <typename ... Args>
-    finish_type operator()(const Args& ... args) const &
-    {
-        decltype(auto) ob = _outbuf_creator.create();
-        stringify::v0::detail::write_args
-            ( ob
-            , make_printer<char_type, FPack>(_fpack, args)... );
-        return OutbufCreator::finish(ob);
     }
 
 private:
@@ -470,62 +474,22 @@ private:
     {
     }
 
-    // template <typename ... Printers>
-    // finish_type _write(const Printers& ... printers) const
-    // {
-    //     decltype(auto) ob = _outbuf_creator.create();
-    //     stringify::v0::detail::write_args(ob, printers...);
-    //     return OutbufCreator::finish(ob);
-    // }
-
-    static inline const stringify::v0::printer<char_type>*
-    _as_printer_cptr(const stringify::v0::printer<char_type>& p)
+    template <typename ... Printers>
+    finish_type _write(const Printers& ... printer) const
     {
-         return &p;
+        return _outbuf_creator.write(printer...);
+
+        // decltype(auto) ob = _outbuf_creator.create();
+        // stringify::v0::detail::write_args(ob, printers...);
+        // return OutbufCreator::finish(ob);
     }
 
-    template < typename ... Args >
-    finish_type _tr_write( const char_type* str
-                         , const char_type* str_end
-                         , const Args& ... args) const &
-    {
-        decltype(auto) ob = _outbuf_creator.create();
-
-        using catenc = stringify::v0::encoding_c<char_type>;
-        using caterr = stringify::v0::tr_invalid_arg_c;
-        decltype(auto) enc = stringify::v0::get_facet<catenc, void>(_fpack);
-        decltype(auto) arg_err = stringify::v0::get_facet<caterr, void>(_fpack);
-        stringify::v0::detail::tr_string_write
-            ( str, str_end
-            , { _as_printer_cptr
-                    ( make_printer<char_type, FPack>(_fpack, args))... }
-            , ob, enc, arg_err );
-
-        return OutbufCreator::finish(ob);
-        // return self._tr_write
-        //     ( str
-        //     , str_end
-        //     , { _as_printer_cptr( make_printer<char_type, FPack>
-        //                                              (self._fpack, args))... }
-        //     , enc
-        //     , arg_err );
-    }
-
-
-
+    // template <typename P>
     // finish_type _tr_write
     //     ( const char_type* str
     //     , const char_type* str_end
-    //     , std::initializer_list<const stringify::v0::printer<char_type>*> args
-    //     , stringify::v0::encoding<char_type> enc
-    //     , stringify::v0::tr_invalid_arg arg_err ) const
+    //     , const P& printer ) const
     // {
-    //     decltype(auto) ob = _outbuf_creator.create();
-
-    //     stringify::v0::detail::tr_string_write
-    //         ( str, str_end, args, ob, enc, arg_err );
-
-    //     return OutbufCreator::finish(ob);
     // }
 
     OutbufCreator _outbuf_creator;
@@ -585,6 +549,7 @@ public:
     constexpr dispatcher_with_given_size(dispatcher_with_given_size&&) = default;
 
     using _common::facets;
+    using _common::operator();
     using _common::tr;
     using _common::reserve_calc;
     using _common::no_reserve;
@@ -598,16 +563,6 @@ public:
     {
         _size = size;
         return std::move(*this);
-    }
-
-    template <typename ... Args>
-    finish_type operator()(const Args& ... args) const &
-    {
-        decltype(auto) ob = _outbuf_creator.create(_size);
-        stringify::v0::detail::write_args
-            ( ob
-            , make_printer<char_type, FPack>(_fpack, args)... );
-        return OutbufCreator::finish(ob);
     }
 
 private:
@@ -640,12 +595,14 @@ private:
     {
     }
 
-    // template <typename ... Printers>
-    // finish_type _write( stringify::v0::basic_outbuf<char_type>& ob
-    //                   , const Printers& ... printers) const
-    // {
-
-    // }
+    template <typename ... Printers>
+    finish_type _write(const Printers& ... printers) const
+    {
+        return _outbuf_creator.sized_write(_size, printers...);
+        // decltype(auto) ob = _outbuf_creator.create(_size);
+        // stringify::v0::detail::write_args(ob, printers...);
+        // return OutbufCreator::finish(ob);
+    }
 
     // template <typename ... Printers>
     // finish_type _write(const Printers& ... printers) &&
@@ -655,38 +612,20 @@ private:
     //     return OutbufCreator::finish(ob);
     // }
 
-    static inline const stringify::v0::printer<char_type>*
-    _as_printer_cptr(const stringify::v0::printer<char_type>& p)
-    {
-         return &p;
-    }
+    // finish_type _tr_write
+    //     ( const char_type* str
+    //     , const char_type* str_end
+    //     , std::initializer_list<const stringify::v0::printer<char_type>*> args
+    //     , stringify::v0::encoding<char_type> enc
+    //     , stringify::v0::tr_invalid_arg arg_err ) const
+    // {
+    //     decltype(auto) ob = _outbuf_creator.create(_size);
 
-    template < typename ... Args >
-    finish_type _tr_write( const char_type* str
-                         , const char_type* str_end
-                         , const Args& ... args) const &
-    {
-        decltype(auto) ob = _outbuf_creator.create(_size);
+    //     stringify::v0::detail::tr_string_write
+    //         ( str, str_end, args, ob, enc, arg_err );
 
-        using catenc = stringify::v0::encoding_c<char_type>;
-        using caterr = stringify::v0::tr_invalid_arg_c;
-        decltype(auto) enc = stringify::v0::get_facet<catenc, void>(_fpack);
-        decltype(auto) arg_err = stringify::v0::get_facet<caterr, void>(_fpack);
-        stringify::v0::detail::tr_string_write
-            ( str, str_end
-            , { _as_printer_cptr
-                    ( make_printer<char_type, FPack>(_fpack, args))... }
-            , ob, enc, arg_err );
-
-        return OutbufCreator::finish(ob);
-        // return self._tr_write
-        //     ( str
-        //     , str_end
-        //     , { _as_printer_cptr( make_printer<char_type, FPack>
-        //                                              (self._fpack, args))... }
-        //     , enc
-        //     , arg_err );
-    }
+    //     return OutbufCreator::finish(ob);
+    // }
 
     std::size_t _size;
     OutbufCreator _outbuf_creator;
@@ -741,6 +680,7 @@ public:
     constexpr dispatcher_calc_size(dispatcher_calc_size&&) = default;
 
     using _common::facets;
+    using _common::operator();
     using _common::tr;
     using _common::no_reserve;
     using _common::reserve;
@@ -760,12 +700,6 @@ public:
     constexpr dispatcher_calc_size && reserve_calc() &&
     {
         return std::move(*this);
-    }
-
-    template <typename ... Args>
-    finish_type operator()(const Args& ... args) const &
-    {
-        return _write(make_printer<char_type, FPack>(_fpack, args)...);
     }
 
 private:
@@ -800,52 +734,28 @@ private:
     finish_type _write(const Printers& ... printers) const
     {
         auto size = stringify::v0::detail::sum_necessary_size(printers...);
-        decltype(auto) ob = _outbuf_creator.create(size);
-        stringify::v0::detail::write_args(ob, printers...);
-        return OutbufCreator::finish(ob);
+        return _outbuf_creator.sized_write(size, printers...);
+        // stringify::v0::detail::write_args(ob, printers...);
+        // return OutbufCreator::finish(ob);
     }
 
-    static inline const stringify::v0::printer<char_type>*
-    _as_printer_cptr(const stringify::v0::printer<char_type>& p)
-    {
-         return &p;
-    }
+    // finish_type _tr_write
+    //     ( const char_type* str
+    //     , const char_type* str_end
+    //     , std::initializer_list<const stringify::v0::printer<char_type>*> args
+    //     , stringify::v0::encoding<char_type> enc
+    //     , stringify::v0::tr_invalid_arg arg_err ) const
+    // {
+    //     auto invs = stringify::v0::detail::invalid_arg_size(enc, arg_err);
+    //     auto size = stringify::v0::detail::tr_string_size( str, str_end
+    //                                                      , args, invs );
+    //     decltype(auto) ob = _outbuf_creator.create(size);
 
-    template < typename ... Args >
-    finish_type _tr_write( const char_type* str
-                         , const char_type* str_end
-                         , const Args& ... args) const &
-    {
-        using catenc = stringify::v0::encoding_c<char_type>;
-        using caterr = stringify::v0::tr_invalid_arg_c;
-        decltype(auto) enc = stringify::v0::get_facet<catenc, void>(_fpack);
-        decltype(auto) arg_err = stringify::v0::get_facet<caterr, void>(_fpack);
-        return _tr_write
-            ( str
-            , str_end
-            , { _as_printer_cptr
-                    ( make_printer<char_type, FPack>(_fpack, args))... }
-            , enc
-            , arg_err );
-    }
+    //     stringify::v0::detail::tr_string_write
+    //         ( str, str_end, args, ob, enc, arg_err );
 
-    finish_type _tr_write
-        ( const char_type* str
-        , const char_type* str_end
-        , std::initializer_list<const stringify::v0::printer<char_type>*> args
-        , stringify::v0::encoding<char_type> enc
-        , stringify::v0::tr_invalid_arg arg_err ) const
-    {
-        auto invs = stringify::v0::detail::invalid_arg_size(enc, arg_err);
-        auto size = stringify::v0::detail::tr_string_size( str, str_end
-                                                         , args, invs );
-        decltype(auto) ob = _outbuf_creator.create(size);
-
-        stringify::v0::detail::tr_string_write
-            ( str, str_end, args, ob, enc, arg_err );
-
-        return OutbufCreator::finish(ob);
-    }
+    //     return OutbufCreator::finish(ob);
+    // }
 
     OutbufCreator _outbuf_creator;
     FPack _fpack;
