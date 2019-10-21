@@ -15,9 +15,29 @@ int main()
 {
     namespace strf = boost::stringify;
 
-    PRINT_BENCHMARK("strf::to_string (\"Hello \", \"World\", \"!\")")
+    PRINT_BENCHMARK("strf::to_string.reserve_calc() (\"Hello \", \"World\", \"!\")")
     {
-        (void)strf::to_string("Hello ", "World", "!");
+        (void)strf::to_string.reserve_calc()("Hello ", "World", "!");
+    }
+    PRINT_BENCHMARK("strf::to_string.reserve(12)    (\"Hello \", \"World\", \"!\")")
+    {
+        (void)strf::to_string.reserve(12)("Hello ", "World", "!");
+    }
+    PRINT_BENCHMARK("strf::to_string.no_reserve()   (\"Hello \", \"World\", \"!\")")
+    {
+        (void)strf::to_string.no_reserve()("Hello ", "World", "!");
+    }
+    PRINT_BENCHMARK("strf::to_string.reserve_calc() .tr(\"Hello {}!\", \"World\")")
+    {
+        (void)strf::to_string.reserve_calc().tr("Hello {}!", "World");
+    }
+    PRINT_BENCHMARK("strf::to_string.reserve(12)    .tr(\"Hello {}!\", \"World\")")
+    {
+        (void)strf::to_string.reserve(12).tr("Hello {}!", "World");
+    }
+    PRINT_BENCHMARK("strf::to_string.no_reserve()   .tr(\"Hello {}!\", \"World\")")
+    {
+        (void)strf::to_string.no_reserve().tr("Hello {}!", "World");
     }
     PRINT_BENCHMARK("fmt::format(\"Hello {}!\", \"World\")")
     {
@@ -26,9 +46,17 @@ int main()
 
     std::cout << "\n";
 
-    PRINT_BENCHMARK("strf::to_string(25)")
+    PRINT_BENCHMARK("strf::to_string.reserve_calc() (25)")
     {
-        (void)strf::to_string(25);
+        (void)strf::to_string.reserve_calc()(25);
+    }
+    PRINT_BENCHMARK("strf::to_string.reserve(2)     (25)")
+    {
+        (void)strf::to_string.reserve(2)(25);
+    }
+    PRINT_BENCHMARK("strf::to_string.no_reserve()   (25)")
+    {
+        (void)strf::to_string.no_reserve()(25);
     }
     PRINT_BENCHMARK("fmt::format(\"{}\", 25)")
     {
@@ -41,17 +69,17 @@ int main()
 
     std::cout << "\n";
 
-    PRINT_BENCHMARK("strf::to_string (LLONG_MAX)")
-    {
-        (void)strf::to_string(LLONG_MAX);
-    }
-    PRINT_BENCHMARK("strf::to_string .reserve_calc() (LLONG_MAX)")
+    PRINT_BENCHMARK("strf::to_string.reserve_calc() (LLONG_MAX)")
     {
         (void)strf::to_string.reserve_calc()(LLONG_MAX);
     }
-    PRINT_BENCHMARK("strf::to_string .reserve(100) (LLONG_MAX)")
+    PRINT_BENCHMARK("strf::to_string.reserve(20)    (LLONG_MAX)")
     {
-        (void)strf::to_string.reserve(100)(LLONG_MAX);
+        (void)strf::to_string.reserve(20) (LLONG_MAX);
+    }
+    PRINT_BENCHMARK("strf::to_string.no_reserve()   (LLONG_MAX)")
+    {
+        (void)strf::to_string.no_reserve() (LLONG_MAX);
     }
     PRINT_BENCHMARK("fmt::format(\"{}\", LLONG_MAX)")
     {
@@ -64,15 +92,18 @@ int main()
 
     std::cout << "\n";
 
-    PRINT_BENCHMARK("strf::to_string(strf::right(\"aa\", 20))")
+    PRINT_BENCHMARK("strf::to_string .reserve_calc() (strf::right(\"aa\", 20))")
     {
-        (void)strf::to_string(strf::right("aa", 20));
+        (void)strf::to_string .reserve_calc() (strf::right("aa", 20));
     }
-    PRINT_BENCHMARK("strf::to_string .reserve(20) (strf::right(\"aa\", 20))")
+    PRINT_BENCHMARK("strf::to_string .reserve(20)    (strf::right(\"aa\", 20))")
     {
-        (void)strf::to_string.reserve(20)(strf::right("aa", 20));
+        (void)strf::to_string .reserve(20) (strf::right("aa", 20));
     }
-
+    PRINT_BENCHMARK("strf::to_string .no_reserve()   (strf::right(\"aa\", 20))")
+    {
+        (void)strf::to_string .no_reserve() (strf::right("aa", 20));
+    }
     PRINT_BENCHMARK("fmt::format(dest, \"{:20}\", \"aa\")")
     {
         fmt::format("{:20}", "aa");
@@ -80,23 +111,30 @@ int main()
 
     std::cout << "\n";
 
-    PRINT_BENCHMARK("strf::to_string (\"ten = \", 10, \"twenty = \", 20)")
+    PRINT_BENCHMARK("strf::to_string .reserve_calc() (\"ten = \", 10, \", twenty = \", 20)")
     {
-        (void)strf::to_string ("ten = ", 10, "twenty = ", 20);
+        (void)strf::to_string .reserve_calc() ("ten = ", 10, ", twenty = ", 20);
     }
-    PRINT_BENCHMARK("strf::to_string .tr(\"ten = {}, twenty = {}\", 10, 20)")
+    PRINT_BENCHMARK("strf::to_string .reserve(21)    (\"ten = \", 10, \", twenty = \", 20)")
     {
-        (void)strf::to_string.tr("ten = {}, twenty = {}", 10, 20);
+        (void)strf::to_string .reserve(21) ("ten = ", 10, ", twenty = ", 20);
     }
-    PRINT_BENCHMARK("strf::to_string .reserve(30) .tr(\"ten = {}, twenty = {}\", 10, 20)")
+    PRINT_BENCHMARK("strf::to_string .no_reserve()   (\"ten = \", 10, \", twenty = \", 20)")
     {
-        (void)strf::to_string.tr("ten = {}, twenty = {}", 10, 20);
+        (void)strf::to_string .no_reserve() ("ten = ", 10, ", twenty = ", 20);
     }
     PRINT_BENCHMARK("strf::to_string .reserve_calc() .tr(\"ten = {}, twenty = {}\", 10, 20)")
     {
-        (void)strf::to_string.reserve_calc().tr("ten = {}, twenty = {}", 10, 20);
+        (void)strf::to_string .reserve_calc() .tr("ten = {}, twenty = {}", 10, 20);
     }
-
+    PRINT_BENCHMARK("strf::to_string .reserve(21)    .tr(\"ten = {}, twenty = {}\", 10, 20)")
+    {
+        (void)strf::to_string .reserve(21).tr("ten = {}, twenty = {}", 10, 20);
+    }
+    PRINT_BENCHMARK("strf::to_string .no_reserve()   .tr(\"ten = {}, twenty = {}\", 10, 20)")
+    {
+        (void)strf::to_string .no_reserve() .tr("ten = {}, twenty = {}", 10, 20);
+    }
     PRINT_BENCHMARK("fmt::format(\"ten = {}, twenty = {}\", 10, 20)")
     {
         (void)fmt::format("ten = {}, twenty = {}", 10, 20);
@@ -181,7 +219,6 @@ int main()
         {
             (void)strf::to_string.reserve(510)(strf::cv(u16sample1));
         }
-
     }
 
     return 0;
